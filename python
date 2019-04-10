@@ -1,0 +1,67 @@
+# -*- coding:utf-8 -*-
+# 《飞驰人生》，爬取豆瓣影评
+import requests
+import re
+import pymysql
+import time
+
+yesnum = 0
+nonum = 0
+
+def get_comment_info(html):
+    get_id = re.findall(r'<a.+people.+">(.+)</a>', html)
+    get_stars = re.findall(r'<span class="allstar(.+) rating" title=".+"></span>', html)
+    get_eval = re.findall(r'<span class=".+" title="(.+)"></span>', html)
+    get_comments = re.findall(r'<span class="short">(.+)</span>', html)
+    get_votes = re.findall(r'<span class="votes">(.+)</span>', html)
+    get_date = re.findall(r'201[0-9]-[0-9]+-[0-9]+', html, re.S)
+    n_page = re.findall(r'<a href="\?start=(\d+)&.+".+>', html)
+
+    n = n_page[0]
+    n = int(n.encode('utf8'))
+    n-=20
+    for i in range(0,len(get_comments)):
+        s = get_comments[i].encode('utf8')
+        star = get_stars[i]
+        star = int(star.encode('utf8'))
+        eval = get_eval[i].encode('utf8')
+        if  star>30 and (eval =='力荐' or eval =='推荐'):
+            global yesnum
+            yesnum+=1
+            out1 = open(r'./yes/yes%d.txt'%yesnum,'a')
+            out1.write(s)
+            out1.close()
+        else:
+            global nonum
+            nonum+=1
+            out2 = open(r'./no/no%d.txt'%nonum,'a')
+            out2.write(s)
+            out2.close()
+    return n_page
+
+
+if __name__ == '__main__':
+    # login douban.com
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.86 Safari/537.36',
+        'Accept-Language':'zh-CN,zh;q=0.9,en;q=0.8'
+    }
+
+    cookies = {
+        'cookie': '你自己的cookie'
+    }
+
+    #要抓取的页数
+    page = 10;
+    each = 0
+    while 1:
+        url = 'https://movie.douban.com/subject/30163509/comments?start=' + str(
+            each) + '&limit=20&sort=new_score&status=P'
+        url_info = requests.get(url, cookies=cookies, headers=headers)
+        print("正在抓取评论，从第" + str(each) + "条开始")
+        next_page = get_comment_info(url_info.text)
+        time.sleep(5)
+        each = each+20
+        #每一页20条数据，要抓取的页数
+        if(each>page*20):
+            break
